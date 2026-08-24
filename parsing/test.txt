@@ -1,0 +1,182 @@
+==> __init__.py <==
+
+==> main_parser.py <==
+from source_reader import SourceReader
+from parser import HeaderParser, ConnectionParser, ZoneParser
+from metada_parser import MetadaParser
+
+
+class MainParser:
+    def __init__(self):
+        self.new_data : list[tuple] = []
+        self.header = HeaderParser()
+        self.metadaparser = MetadaParser()
+        self.zoneparser = ZoneParser(self.metadaparser)
+        self.connection = ConnectionParser(self.metadaparser)
+        
+
+    def check_unrelated_string(self, lines: list[tuple[int, str]]):
+        word_list = ["nb_drones", "start_hub", "hub", "end_hub", "connection"]
+        for line in lines:
+            if not any(item in line[1] for item in word_list):
+                raise ValueError(f"line {line[0]} :{line[1]} is not correct")
+
+
+    def check_grammar(self, lines: list[tuple[int, str]]):
+        self.check_unrelated_string(lines)
+
+        for line in lines:
+            if "nb_drones" in line[1]:
+                data = self.header.line_format_checker(line)
+                self.new_data.append(data)
+            elif "connection" in line[1]:
+                data = self.connection.line_format_checker(line)
+                self.new_data.append(data)
+            elif any(word in line[1] for word in  ["start_hub", "hub", "end_hub"]):
+                data = self.zoneparser.line_format_checker(line)
+
+if __name__=="__main__":
+    input = SourceReader("../maps/easy/01_linear_path.txt")
+    parsing = MainParser()
+    parsing.check_grammar(input.read_lines())
+
+==> metada_parser.py <==
+import re
+
+
+class MetadaParser():
+    def get_brackets(self, line):
+        return re.findall(r"\[(.*?)\]", line)
+    
+    def conexion_metadata(self, line):
+          data = self.get_brackets(line)
+          if data:
+               return tuple(data[0].split('=', 1))
+          return ()
+
+    def zone_metadata(self, line):
+        data = self.get_brackets(line)
+        print(data)
+        if data:
+            pattern = r"(?:zone=\S+|color=\S+|max_drones=\S+)"
+            print(re.findall(r'(\w+)=([^\s\]]+)', data[0]))
+            if re.search(pattern, data[0]):
+                print("At least one key exists!")
+
+    def verify_metadata(self, line):
+         data = self.get_brackets(line)
+==> metadata_parser.py <==
+class MetadataParser():
+    def parse_conection_data(self):
+        pass
+==> parser.py <==
+from abc import ABC, abstractmethod
+import re
+
+# one of the questions i have is that in regex i do not need to put /s* at the start and in the end
+class Parser(ABC):
+    # def __init__(self, new_data:list[tuple]):
+    #     self.new_data: list[tuple] = new_data
+
+    @abstractmethod
+    def line_format_checker(self, line:tuple[int, str]):
+        pass
+
+    @abstractmethod
+    def data_updater(self, line:tuple[int, str]):
+        pass
+
+    # def get_data(self, line:tuple[int, str]):
+    #     return self.new_data
+
+class HeaderParser(Parser):
+    # def __init__(self, new_data:list[tuple]):
+    #         super().__init__(new_data)
+
+    def line_format_checker(self, line:tuple[int, str]):
+         if not re.match(r"^nb_drones:\s*\d+$", line[1]):
+            raise ValueError(f"line {line[0]} : the header line should be nb_drones: <number>")
+         return (self.data_updater(line))
+
+    def data_updater(self, line:tuple[int, str]):
+         data = line[1].replace(":", " ").split()
+         return (line[0], data)
+
+# class HeaderParser(Parser):
+#     def __init__(self, new_data:list[tuple]):
+#             super().__init__(new_data)
+
+#     def line_format_checker(self, line:tuple[int, str]):
+#          if not re.match(r"^nb_drones:\s*\d+$", line[1]):
+#             raise ValueError(f"line {line[0]} : the header line should be nb_drones: <number>")
+#          self.data_updater(line)
+
+#     def data_updater(self, line:tuple[int, str]):
+#          data = line[1].replace(":", " ").split()
+#          self.new_data.append((line[0], tuple(data)))
+
+
+class ConnectionParser(Parser):
+    def __init__(self, metadataparser):
+        self.metadataparser = metadataparser
+    
+    def line_format_checker(self, line:tuple[int, str]):
+        metadata = self.metadataparser.conexion_metadata(line[1])
+        meta_data = r"^connection:\s*[a-zA-Z0-9]+-[a-zA-Z0-9]+\s+\[max_link_capacity\s*=\s*\d+\]$"
+        no_meta_data = r"^connection:\s*[a-zA-Z0-9]+-[a-zA-Z0-9]+$"
+        if not re.match(meta_data, line[1]) and not re.match(no_meta_data, line[1]):
+            raise ValueError(f"line {line[0]}: connexion should be like this (connection: <name1>-<name2> [metadata]) metadata is optionnal")
+        return self.data_updater(line, metadata)
+    
+    def data_updater(self, line: tuple[int, str], metadata: str):
+        data = line[1].replace(":", " ").split() 
+        if metadata:
+            return (line[0], data[0], tuple(data[1].replace("-", " ").split()), metadata)
+        return (line[0], data[0], tuple(data[1].replace("-", " ").split()))
+
+
+
+class ZoneParser(Parser):
+    def __init__(self, metadataparser):
+        self.metadataparser = metadataparser
+
+    def line_format_checker(self, line:tuple[int, str]):
+        pattern = r"^(start_hub|hub|end_hub):\s+[a-zA-Z0-9]+\s+\d+\s+\d+(?:\s+\[[^\]]*\])?\s*$"
+        metadata = self.metadataparser.zone_metadata(line[1])
+
+
+    def data_updater(self, line:tuple[int, str]):
+        pass
+==> source_reader.py <==
+import os
+
+
+class SourceReader:
+    """A class to handle secure and clean file reading operations."""
+
+    def __init__(self, file_path: str):
+        """Initializes the reader with a targeted file path."""
+        self.file_path = file_path
+
+    def strip_comments(self, line: str):
+        """Strip the comments from the line."""
+        return line.split("#")[0].rstrip()
+
+    def read_lines(self) -> list:
+        """Reads the file and returns a structured list of individual lines."""
+        if not os.path.exists(self.file_path):
+            return []
+        try:
+            with open(self.file_path, "r") as file:
+                result = []
+                for line_number, line in enumerate(file, start=1):
+                    cleaned = self.strip_comments(line.strip())
+                    if cleaned:
+                        result.append((line_number, cleaned))
+                return result
+        except (OSError):
+            return []
+
+if __name__=="__main__":
+    input = SourceReader("../maps/easy/01_linear_path.txt")
+    print(input.read_lines())
