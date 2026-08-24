@@ -33,8 +33,8 @@ class MainParser:
                 data = self.zoneparser.line_format_checker(line)
                 self.new_data.append(data)
         self.checks()
-        for line in self.new_data:
-            print(line)
+        # for line in self.new_data:
+        #     print(line)
 
     def check_necessery_line(self):
         strings = {

@@ -7,7 +7,7 @@ hub: waypoint2 2 0  [zone=priority color=green max_drones=2]
 end_hub: goal 3 0
 
 connection: start-waypoint1
-connection: waypoint1-waypoint2 [max_link_capacity=2 ]
+connection: waypoint1-waypoint2 [max_link_capacity=2]
 connection: waypoint2-goal
 
 # in the part of the initialization i should check if any name is duplicated also check that the cordinate is not repeated and the no connection is declared before the the zone is already setloloxc
