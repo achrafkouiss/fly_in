@@ -1,66 +1,84 @@
-from source_reader import SourceReader
-from parser import HeaderParser, ConnectionParser, ZoneParser
-from metadata_parser import MetadaParser
+from .source_reader import SourceReader
+from .parser import HeaderParser, ConnectionParser, ZoneParser, Parser
+from .metadata_parser import MetadaParser
 
 
 class MainParser:
-    def __init__(self):
-        self.new_data : list[tuple] = []
-        self.header = HeaderParser()
-        self.metadaparser = MetadaParser()
-        self.zoneparser = ZoneParser(self.metadaparser)
-        self.connection = ConnectionParser(self.metadaparser)
-        
+    """Validates and converts raw map lines into structured tuples."""
 
-    def check_unrelated_string(self, lines: list[tuple[int, str]]):
-        word_list = ["nb_drones", "start_hub", "hub", "end_hub", "connection"]
-        for line in lines:
-            if not any(item in line[1] for item in word_list):
-                raise ValueError(f"line {line[0]} :{line[1]} is not correct")
+    def __init__(self) -> None:
+        """Initialize the parser and its keyword dispatch table."""
+        self.new_data: list[tuple] = []
+        metadata = MetadaParser()
+        zone_parser = ZoneParser(metadata)
+        self.dispatch: dict[str, Parser] = {
+            "nb_drones": HeaderParser(),
+            "connection": ConnectionParser(metadata),
+            "start_hub": zone_parser,
+            "hub": zone_parser,
+            "end_hub": zone_parser,
+        }
 
+    @staticmethod
+    def get_keyword(content: str) -> str:
+        """Extract the leading keyword (text before the first ':') of a line."""
+        return content.split(":", 1)[0].strip()
 
-    def check_grammar(self, lines: list[tuple[int, str]]):
-        self.check_unrelated_string(lines)
-
-        for line in lines:
-            if "nb_drones" in line[1]:
-                data = self.header.line_format_checker(line)
-                self.new_data.append(data)
-            elif "connection" in line[1]:
-                data = self.connection.line_format_checker(line)
-                self.new_data.append(data)
-            elif any(word in line[1] for word in  ["start_hub", "hub", "end_hub"]):
-                data = self.zoneparser.line_format_checker(line)
-                self.new_data.append(data)
+    def check_grammar(self, lines: list[tuple[int, str]]) -> list[tuple]:
+        """Validate and parse every line, populating self.new_data."""
+        for line_number, content in lines:
+            keyword = self.get_keyword(content)
+            parser = self.dispatch.get(keyword)
+            if parser is None:
+                raise ValueError(f"line {line_number} :{content} is not correct")
+            self.new_data.append(parser.line_format_checker((line_number, content)))
         self.checks()
-        # for line in self.new_data:
-        #     print(line)
+        return self.new_data
 
-    def check_necessery_line(self):
-        strings = {
-            "nb_drones": 0,
-            "start_hub": 0,
-            "end_hub": 0,
-            "connection": 0
-            }
+    def check_necessery_line(self) -> None:
+        """Ensure the required line types appear the expected number of times."""
+        strings = {"nb_drones": 0, "start_hub": 0, "end_hub": 0, "connection": 0}
         for line in self.new_data:
-            if line[1] in strings.keys():
+            if line[1] in strings:
                 strings[line[1]] += 1
-            if not (strings.get(line[1], 0) == 1) and line[1] in ["nb_drones", "start_hub", "end_hub"]:
-                raise ValueError(f"{line[0]}: there should be one {line[1]} no less and no more")
-            elif (strings.get(line[1], 0) < 1) and line[1] == "connection":
+            if strings.get(line[1], 0) != 1 and line[1] in (
+                "nb_drones",
+                "start_hub",
+                "end_hub",
+            ):
+                raise ValueError(
+                    f"{line[0]}: there should be one {line[1]} no less and no more"
+                )
+            if strings.get(line[1], 0) < 1 and line[1] == "connection":
                 raise ValueError("there should atleast one connection.")
         zero_keys = [key for key, value in strings.items() if value == 0]
         if zero_keys:
             raise ValueError(f"there is no {' and '.join(zero_keys)}")
 
-    def checks(self):
+    def check_duplicate_connection_name(self) -> None:
+        """Ensure the connection name and the connection itself is not duplicated."""
+        connections = [line for line in self.new_data if line[1] == "connection"]
+        for index, line in enumerate(connections):
+            name1, name2 = line[2]
+            if name1 == name2:
+                raise ValueError(f"line {line[0]}: {line[2]} names of the zones should not be the same")
+            for l in connections[index + 1:]:
+                if sorted(tuple((name1, name2))) == sorted(l[2]):
+                    raise ValueError(f"line {line[0]} and {l[0]}: {line[2]} and {l[2]} duplited connection")
+
+    def checks(self) -> None:
+        """Run all cross-line validation checks."""
         self.check_necessery_line()
         if self.new_data[0][1] != "nb_drones":
-            raise ValueError(f"line {self.new_data[0][0]}: The first line should defines the number of drones using nb_drones: <number>.")
-        # self.connection.check_duplicate(self.new_data)
+            raise ValueError(
+                f"line {self.new_data[0][0]}: The first line should defines the "
+                "number of drones using nb_drones: <number>."
+            )
+        self.check_duplicate_connection_name()
 
-if __name__=="__main__":
-    input = SourceReader("../maps/easy/01_linear_path.txt")
+
+if __name__ == "__main__":
+    reader = SourceReader("../maps/easy/01_linear_path.txt")
     parsing = MainParser()
-    parsing.check_grammar(input.read_lines())
+    parsing.check_grammar(reader.read_lines())
+    # print(parsing.new_data)

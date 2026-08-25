@@ -1,6 +1,6 @@
-from zone_behavior import NormalBehavior, BlockedBehavior, PriorityBehavior, \
+from .zone_behavior import NormalBehavior, BlockedBehavior, PriorityBehavior, \
     RestrictedBehavior, EndZoneBehavior, StartZoneBehavior
-from zone import Zone
+from .zone import Zone
 
 class ZoneFactory():
     def __init__(self):
@@ -32,7 +32,7 @@ class ZoneFactory():
             if coord == (x, y):
                 raise ValueError(f"line {line}: the zone cordinates {coord} is duplicated")
 
-    def zone_builder(self, line):
+    def builder(self, line, zones):
         zone_type = line[1]
         name = line[2]
         x = line[3]
@@ -47,18 +47,19 @@ class ZoneFactory():
             name,
             x,
             y,
+            zone,
             color,
-            max_drones,
-            zone
+            max_drones
         )
         self.zones[name] = new_zone
+        return self.zones
 
 
 
 
 if __name__ == "__main__":
     a = ZoneFactory()
-    a.zone_builder((6, 'hub', 'waypoint1', 2, 0, {'zone': 'priority', 'color': 'green', 'max_drones': '2'}))
-    a.zone_builder((6, 'hub', 'waypoint2', 3, 0, {'zone': 'priority', 'color': 'green', 'max_drones': '2'}))
+    a.builder((6, 'hub', 'waypoint1', 2, 0, {'zone': 'priority', 'color': 'green', 'max_drones': '2'}))
+    a.builder((6, 'hub', 'waypoint2', 3, 0, {'zone': 'priority', 'color': 'green', 'max_drones': '2'}))
 
     

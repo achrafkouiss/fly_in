@@ -1,10 +1,24 @@
 import re
 
-class MetadaParser():
-    def get_brackets(self, line: str):
+
+class MetadaParser:
+    """Parses and validates the optional `[key=value ...]` metadata blocks."""
+
+    def get_brackets(self, line: str) -> list[str]:
+        """Return the raw contents of every `[...]` block in the line."""
         return re.findall(r"\[(.*?)\]", line)
 
-    def check_valid_keys(self, line: tuple[int, str], valid_keys):
+    def check_valid_keys(self, line: tuple[int, str], valid_keys: set[str]) -> dict[str, str]:
+        """Parse a metadata block and validate its keys.
+
+        Args:
+            line: (line_number, content) tuple.
+            valid_keys: The set of metadata keys allowed for this line type.
+
+        Returns:
+            A dict of key/value pairs found in the metadata block, or an
+            empty dict if the line has no metadata block.
+        """
         line_number, content = line
         brackets = self.get_brackets(content)
         if not brackets:
@@ -26,33 +40,30 @@ class MetadaParser():
                 raise ValueError(f"line {line_number}: metadata key '{key}' has no value")
             if key in metadata:
                 raise ValueError(f"line {line_number}: duplicate metadata key '{key}'")
-            metadata[key] = value
+            metadata[key] = int(value) if key in ("max_link_capacity", "max_drones") else value
         return metadata
 
     def conexion_metadata(self, line: tuple[int, str]) -> dict:
-        VALID_CONNECTION_KEYS = {"max_link_capacity"}
-        metadata = self.check_valid_keys(line, VALID_CONNECTION_KEYS)
+        """Validate and return metadata for a connection line."""
+        valid_connection_keys = {"max_link_capacity"}
+        metadata = self.check_valid_keys(line, valid_connection_keys)
         if "max_link_capacity" in metadata:
             cap = metadata["max_link_capacity"]
-            if not cap.isdigit() or int(cap) <= 0:
+            if cap <= 0:
                 raise ValueError(
                     f"line {line[0]}: max_link_capacity must be a positive integer"
                 )
         return metadata
 
     def zone_metadata(self, line: tuple[int, str]) -> dict:
-        VALID_ZONE_KEYS = {"zone", "color", "max_drones"}
-        VALID_ZONE_TYPES = {"normal", "blocked", "restricted", "priority"}
-        metadata = self.check_valid_keys(line, VALID_ZONE_KEYS)
-        if "zone" in metadata and metadata["zone"] not in VALID_ZONE_TYPES:
-            raise ValueError(
-                f"line {line[0]}: invalid zone type '{metadata['zone']}'"
-            )
+        """Validate and return metadata for a zone line."""
+        valid_zone_keys = {"zone", "color", "max_drones"}
+        valid_zone_types = {"normal", "blocked", "restricted", "priority"}
+        metadata = self.check_valid_keys(line, valid_zone_keys)
+        if "zone" in metadata and metadata["zone"] not in valid_zone_types:
+            raise ValueError(f"line {line[0]}: invalid zone type '{metadata['zone']}'")
         if "max_drones" in metadata:
             mx = metadata["max_drones"]
-            # print(metadata)
-            if not mx.isdigit() or int(mx) <= 0:
-                raise ValueError(
-                    f"line {line[0]}: max_drones must be a positive integer"
-                )
+            if mx <= 0:
+                raise ValueError(f"line {line[0]}: max_drones must be a positive integer")
         return metadata

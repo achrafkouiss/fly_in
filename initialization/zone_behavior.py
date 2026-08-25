@@ -1,75 +1,82 @@
 from abc import ABC, abstractmethod
 
 class ZoneBehavior(ABC):
+    """Strategy interface defining zone-type-specific traversal rules."""
     @abstractmethod
-    def get_movement_cost(self):
-        pass
+    def get_movement_cost(self) -> int:
+        """Return the turn cost to move into a zone of this type."""
 
     @abstractmethod
-    def is_traversable(self):
-        pass
+    def is_traversable(self) -> bool:
+        """Return whether a drone may enter a zone of this type."""
 
     @abstractmethod
-    def get_capacity_limit(self, max_capacity):
-        pass
+    def get_capacity_limit(self, max_capacity: int) -> float:
+        """Return the effective capacity limit given the configured max."""
 
 class NormalBehavior(ZoneBehavior):
-    def get_movement_cost(self):
+    """Standard zone: 1 turn cost, traversable, uses configured capacity."""
+    def get_movement_cost(self) -> int:
         return 1
 
-    def is_traversable(self):
+    def is_traversable(self) -> bool:
         return True
 
-    def get_capacity_limit(self, max_capacity):
+    def get_capacity_limit(self, max_capacity: int) -> float:
         return max_capacity
 
 class RestrictedBehavior(ZoneBehavior):
-    def get_movement_cost(self):
+    """Restricted zone: 2 turn cost, traversable, uses configured capacity."""
+    def get_movement_cost(self) -> int:
         return 2
 
-    def is_traversable(self):
+    def is_traversable(self) -> bool:
         return True
 
-    def get_capacity_limit(self, max_capacity):
+    def get_capacity_limit(self, max_capacity: int) -> float:
         return max_capacity
 
 class PriorityBehavior(ZoneBehavior):
-    def get_movement_cost(self):
+    """Priority zone: 1 turn cost, traversable, preferred in pathfinding."""
+    def get_movement_cost(self) -> int:
         return 1
 
-    def is_traversable(self):
+    def is_traversable(self) -> bool:
         return True
 
-    def get_capacity_limit(self, max_capacity):
+    def get_capacity_limit(self, max_capacity: int) -> float:
         return max_capacity
 
 class BlockedBehavior(ZoneBehavior):
-    def get_movement_cost(self):
+    """Blocked zone: not traversable, zero capacity."""
+    def get_movement_cost(self) -> int:
         return 1
 
-    def is_traversable(self):
+    def is_traversable(self) -> bool:
         return False
 
-    def get_capacity_limit(self, max_capacity):
+    def get_capacity_limit(self, max_capacity: int) -> float:
         return 0
 
 class StartZoneBehavior(ZoneBehavior):
-    def get_movement_cost(self):
+    """Start zone: free entry, unlimited capacity."""
+    def get_movement_cost(self) -> int:
         return 0
 
-    def is_traversable(self):
+    def is_traversable(self) -> bool:
         return True
 
-    def get_capacity_limit(self, max_capacity):
+    def get_capacity_limit(self, max_capacity: int) -> float:
         return float('inf')
 
 
 class EndZoneBehavior(ZoneBehavior):
-    def get_movement_cost(self):
+    """End zone: normal entry cost, unlimited capacity."""
+    def get_movement_cost(self) -> int:
         return 1
 
-    def is_traversable(self):
+    def is_traversable(self) -> bool:
         return True
 
-    def get_capacity_limit(self, max_capacity):
+    def get_capacity_limit(self, max_capacity: int) -> float:
         return float('inf')
