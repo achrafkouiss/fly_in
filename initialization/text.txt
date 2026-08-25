@@ -1,0 +1,267 @@
+==> __init__.py <==
+from .zone_factory import ZoneFactory
+from .connection_factory import ConnectionFactory
+==> connection.py <==
+class Connection:
+    def __init__(self, zone1, zone2, max_link_capacity=1):
+        self.zone1 = zone1
+        self.zone2 = zone2
+        self.max_link_capacity = 1 if max_link_capacity is None else max_link_capacity
+
+    def get_zones(self):
+        return (self.zone1, self.zone2)
+
+    def get_capacity(self):
+        return self.max_link_capacity
+
+    # def get_other_zone(self, zones):
+    #     pass
+
+==> connection_factory.py <==
+from .connection import Connection
+
+class ConnectionFactory:
+    def __init__(self):
+        self.connections = []
+
+    def builder(self, line, zones):
+        zone1, zone2 = line[2]
+        if zone1 not in zones or zone2 not in zones:
+            raise ValueError(f"line {line[0]}: make sure zones exist before making the connection")
+        options = line[3] if len(line) > 3 else {}  
+        max_link_capacity = options.get("max_link_capacity")
+        connection = Connection(
+            zone1,
+            zone2,
+            max_link_capacity
+        )
+        self.connections.append(connection)
+        return connection
+
+        # new_zone = Zone(
+        #     zone_type,
+        #     name,
+        #     x,
+        #     y,
+        #     zone,
+        #     color,
+        #     max_drones
+        # )
+        # self.zones[name] = new_zone
+==> zone.py <==
+from .zone_behavior import ZoneBehavior
+
+
+class Zone:
+    """Represents a single zone (node) in the drone routing graph."""
+
+    def __init__(
+        self,
+        zone_type: str,
+        name: str,
+        x: int,
+        y: int,
+        behavior: ZoneBehavior,
+        color: str = "white",
+        max_drones: int = 1,
+    ) -> None:
+        """Initialize a Zone.
+
+        Args:
+            zone_type: The kind of zone ("hub", "start_hub", "end_hub").
+            name: Unique zone name.
+            x: X coordinate.
+            y: Y coordinate.
+            behavior: Strategy object defining movement/capacity rules.
+            color: Display color (default "white").
+            max_drones: Maximum simultaneous drone occupancy (default 1).
+        """
+        self.zone_type = zone_type
+        self.name = name
+        self.x = x
+        self.y = y
+        self.color = color
+        self.max_drones = max_drones
+        self.behavior = behavior
+
+    def get_movement_cost(self) -> int:
+        """Return the turn cost of moving into this zone."""
+        return self.behavior.get_movement_cost()
+
+    def is_traversable(self) -> bool:
+        """Return whether drones may enter this zone."""
+        return self.behavior.is_traversable()
+
+    def get_capacity_limit(self, max_capacity: int) -> float:
+        """Return the effective capacity limit for this zone.
+
+        Note:
+            For start/end zones this always returns infinity regardless of
+            any max_drones metadata, per the subject's occupancy rules.
+        """
+        return self.behavior.get_capacity_limit(max_capacity)
+
+    def get_name(self) -> str:
+        """Return the zone's name."""
+        return self.name
+
+    def get_coordinates(self) -> tuple[int, int]:
+        """Return the (x, y) coordinates of the zone."""
+        return (self.x, self.y)
+
+    def get_color(self) -> str:
+        """Return the display color of the zone."""
+        return self.color
+
+    def get_max_drones(self) -> int:
+        """Return the configured max drone capacity (raw metadata value)."""
+        return self.max_drones
+==> zone_behavior.py <==
+from abc import ABC, abstractmethod
+
+class ZoneBehavior(ABC):
+    """Strategy interface defining zone-type-specific traversal rules."""
+    @abstractmethod
+    def get_movement_cost(self) -> int:
+        """Return the turn cost to move into a zone of this type."""
+
+    @abstractmethod
+    def is_traversable(self) -> bool:
+        """Return whether a drone may enter a zone of this type."""
+
+    @abstractmethod
+    def get_capacity_limit(self, max_capacity: int) -> float:
+        """Return the effective capacity limit given the configured max."""
+
+class NormalBehavior(ZoneBehavior):
+    """Standard zone: 1 turn cost, traversable, uses configured capacity."""
+    def get_movement_cost(self) -> int:
+        return 1
+
+    def is_traversable(self) -> bool:
+        return True
+
+    def get_capacity_limit(self, max_capacity: int) -> float:
+        return max_capacity
+
+class RestrictedBehavior(ZoneBehavior):
+    """Restricted zone: 2 turn cost, traversable, uses configured capacity."""
+    def get_movement_cost(self) -> int:
+        return 2
+
+    def is_traversable(self) -> bool:
+        return True
+
+    def get_capacity_limit(self, max_capacity: int) -> float:
+        return max_capacity
+
+class PriorityBehavior(ZoneBehavior):
+    """Priority zone: 1 turn cost, traversable, preferred in pathfinding."""
+    def get_movement_cost(self) -> int:
+        return 1
+
+    def is_traversable(self) -> bool:
+        return True
+
+    def get_capacity_limit(self, max_capacity: int) -> float:
+        return max_capacity
+
+class BlockedBehavior(ZoneBehavior):
+    """Blocked zone: not traversable, zero capacity."""
+    def get_movement_cost(self) -> int:
+        return 1
+
+    def is_traversable(self) -> bool:
+        return False
+
+    def get_capacity_limit(self, max_capacity: int) -> float:
+        return 0
+
+class StartZoneBehavior(ZoneBehavior):
+    """Start zone: free entry, unlimited capacity."""
+    def get_movement_cost(self) -> int:
+        return 0
+
+    def is_traversable(self) -> bool:
+        return True
+
+    def get_capacity_limit(self, max_capacity: int) -> float:
+        return float('inf')
+
+
+class EndZoneBehavior(ZoneBehavior):
+    """End zone: normal entry cost, unlimited capacity."""
+    def get_movement_cost(self) -> int:
+        return 1
+
+    def is_traversable(self) -> bool:
+        return True
+
+    def get_capacity_limit(self, max_capacity: int) -> float:
+        return float('inf')
+==> zone_factory.py <==
+from .zone_behavior import NormalBehavior, BlockedBehavior, PriorityBehavior, \
+    RestrictedBehavior, EndZoneBehavior, StartZoneBehavior
+from .zone import Zone
+
+class ZoneFactory():
+    def __init__(self):
+        self.zones_behaviour = {
+                "normal": NormalBehavior(),
+                "blocked": BlockedBehavior(),
+                "priority": PriorityBehavior(),
+                "restricted": RestrictedBehavior(),
+                "start_hub": StartZoneBehavior(),
+                "end_hub": EndZoneBehavior(),
+                }
+        self.zones: dict = {}
+
+    def get_behavior(self, behavior, zone_type):
+        if not behavior and zone_type == 'hub':
+            behavior = "normal"
+        elif behavior and zone_type == 'hub':
+            pass
+        else:
+            behavior = zone_type
+        return self.zones_behaviour[behavior]
+
+    def check_replicated(self, name, x, y,line):
+        # print(name , self.zones.get(name))
+        if self.zones.get(name):
+            raise ValueError(f"line {line}: the zone name {name} is duplicated")
+        for obj in self.zones.values():
+            coord = (obj.x, obj.y)
+            if coord == (x, y):
+                raise ValueError(f"line {line}: the zone cordinates {coord} is duplicated")
+
+    def builder(self, line, zones):
+        zone_type = line[1]
+        name = line[2]
+        x = line[3]
+        y = line[4]
+        options = line[5] if len(line) > 5 else {}
+        color = options.get("color")
+        max_drones = options.get("max_drones")
+        zone = self.get_behavior(options.get("zone"), zone_type)
+        self.check_replicated(name, x, y, line[0])
+        new_zone = Zone(
+            zone_type,
+            name,
+            x,
+            y,
+            zone,
+            color,
+            max_drones
+        )
+        self.zones[name] = new_zone
+        return self.zones
+
+
+
+
+if __name__ == "__main__":
+    a = ZoneFactory()
+    a.builder((6, 'hub', 'waypoint1', 2, 0, {'zone': 'priority', 'color': 'green', 'max_drones': '2'}))
+    a.builder((6, 'hub', 'waypoint2', 3, 0, {'zone': 'priority', 'color': 'green', 'max_drones': '2'}))
+
+    

@@ -1,0 +1,298 @@
+==> __init__.py <==
+from .main_parser import MainParser
+from .source_reader import SourceReader
+==> main_parser.py <==
+from .source_reader import SourceReader
+from .parser import HeaderParser, ConnectionParser, ZoneParser, Parser
+from .metadata_parser import MetadaParser
+
+
+class MainParser:
+    """Validates and converts raw map lines into structured tuples."""
+
+    def __init__(self) -> None:
+        """Initialize the parser and its keyword dispatch table."""
+        self.new_data: list[tuple] = []
+        metadata = MetadaParser()
+        zone_parser = ZoneParser(metadata)
+        self.dispatch: dict[str, Parser] = {
+            "nb_drones": HeaderParser(),
+            "connection": ConnectionParser(metadata),
+            "start_hub": zone_parser,
+            "hub": zone_parser,
+            "end_hub": zone_parser,
+        }
+
+    @staticmethod
+    def get_keyword(content: str) -> str:
+        """Extract the leading keyword (text before the first ':') of a line."""
+        return content.split(":", 1)[0].strip()
+
+    def check_grammar(self, lines: list[tuple[int, str]]) -> list[tuple]:
+        """Validate and parse every line, populating self.new_data."""
+        for line_number, content in lines:
+            keyword = self.get_keyword(content)
+            parser = self.dispatch.get(keyword)
+            if parser is None:
+                raise ValueError(f"line {line_number} :{content} is not correct")
+            self.new_data.append(parser.line_format_checker((line_number, content)))
+        self.checks()
+        return self.new_data
+
+    def check_necessery_line(self) -> None:
+        """Ensure the required line types appear the expected number of times."""
+        strings = {"nb_drones": 0, "start_hub": 0, "end_hub": 0, "connection": 0}
+        for line in self.new_data:
+            if line[1] in strings:
+                strings[line[1]] += 1
+            if strings.get(line[1], 0) != 1 and line[1] in (
+                "nb_drones",
+                "start_hub",
+                "end_hub",
+            ):
+                raise ValueError(
+                    f"{line[0]}: there should be one {line[1]} no less and no more"
+                )
+            if strings.get(line[1], 0) < 1 and line[1] == "connection":
+                raise ValueError("there should atleast one connection.")
+        zero_keys = [key for key, value in strings.items() if value == 0]
+        if zero_keys:
+            raise ValueError(f"there is no {' and '.join(zero_keys)}")
+
+    def check_duplicate_connection_name(self) -> None:
+        """Ensure the connection name and the connection itself is not duplicated."""
+        connections = [line for line in self.new_data if line[1] == "connection"]
+        for index, line in enumerate(connections):
+            name1, name2 = line[2]
+            if name1 == name2:
+                raise ValueError(f"line {line[0]}: {line[2]} names of the zones should not be the same")
+            for l in connections[index + 1:]:
+                if sorted(tuple((name1, name2))) == sorted(l[2]):
+                    raise ValueError(f"line {line[0]} and {l[0]}: {line[2]} and {l[2]} duplited connection")
+
+    def checks(self) -> None:
+        """Run all cross-line validation checks."""
+        self.check_necessery_line()
+        if self.new_data[0][1] != "nb_drones":
+            raise ValueError(
+                f"line {self.new_data[0][0]}: The first line should defines the "
+                "number of drones using nb_drones: <number>."
+            )
+        self.check_duplicate_connection_name()
+
+
+if __name__ == "__main__":
+    reader = SourceReader("../maps/easy/01_linear_path.txt")
+    parsing = MainParser()
+    parsing.check_grammar(reader.read_lines())
+    # print(parsing.new_data)
+==> metadata_parser.py <==
+import re
+
+
+class MetadaParser:
+    """Parses and validates the optional `[key=value ...]` metadata blocks."""
+
+    def get_brackets(self, line: str) -> list[str]:
+        """Return the raw contents of every `[...]` block in the line."""
+        return re.findall(r"\[(.*?)\]", line)
+
+    def check_valid_keys(self, line: tuple[int, str], valid_keys: set[str]) -> dict[str, str]:
+        """Parse a metadata block and validate its keys.
+
+        Args:
+            line: (line_number, content) tuple.
+            valid_keys: The set of metadata keys allowed for this line type.
+
+        Returns:
+            A dict of key/value pairs found in the metadata block, or an
+            empty dict if the line has no metadata block.
+        """
+        line_number, content = line
+        brackets = self.get_brackets(content)
+        if not brackets:
+            return {}
+        tokens = brackets[0].split()
+        if not tokens:
+            raise ValueError(f"line {line_number}: empty metadata block")
+        metadata: dict[str, str] = {}
+        for token in tokens:
+            if "=" not in token:
+                raise ValueError(
+                    f"line {line_number}: invalid metadata token '{token}', "
+                    "expected key=value"
+                )
+            key, _, value = token.partition("=")
+            if key not in valid_keys:
+                raise ValueError(f"line {line_number}: unknown metadata key '{key}'")
+            if not value:
+                raise ValueError(f"line {line_number}: metadata key '{key}' has no value")
+            if key in metadata:
+                raise ValueError(f"line {line_number}: duplicate metadata key '{key}'")
+            metadata[key] = int(value) if key in ("max_link_capacity", "max_drones") else value
+        return metadata
+
+    def conexion_metadata(self, line: tuple[int, str]) -> dict:
+        """Validate and return metadata for a connection line."""
+        valid_connection_keys = {"max_link_capacity"}
+        metadata = self.check_valid_keys(line, valid_connection_keys)
+        if "max_link_capacity" in metadata:
+            cap = metadata["max_link_capacity"]
+            if cap <= 0:
+                raise ValueError(
+                    f"line {line[0]}: max_link_capacity must be a positive integer"
+                )
+        return metadata
+
+    def zone_metadata(self, line: tuple[int, str]) -> dict:
+        """Validate and return metadata for a zone line."""
+        valid_zone_keys = {"zone", "color", "max_drones"}
+        valid_zone_types = {"normal", "blocked", "restricted", "priority"}
+        metadata = self.check_valid_keys(line, valid_zone_keys)
+        if "zone" in metadata and metadata["zone"] not in valid_zone_types:
+            raise ValueError(f"line {line[0]}: invalid zone type '{metadata['zone']}'")
+        if "max_drones" in metadata:
+            mx = metadata["max_drones"]
+            if mx <= 0:
+                raise ValueError(f"line {line[0]}: max_drones must be a positive integer")
+        return metadata
+==> parser.py <==
+import re
+from abc import ABC, abstractmethod
+from typing import Optional
+from .metadata_parser import MetadaParser
+
+
+class Parser(ABC):
+    """Common interface for line-format validators/parsers."""
+
+    @abstractmethod
+    def line_format_checker(self, line: tuple[int, str]) -> tuple:
+        """Validate a line's format and return its parsed representation."""
+
+    @abstractmethod
+    def data_updater(self, line: tuple[int, str], metadata: Optional[dict] = None) -> tuple:
+        """Convert a validated line into a structured tuple.
+
+        Args:
+            line: (line_number, content) tuple.
+            metadata: Parsed metadata dict, when relevant to this parser.
+        """
+
+
+class HeaderParser(Parser):
+    """Parses the mandatory `nb_drones: <number>` line."""
+
+    _PATTERN = re.compile(r"^nb_drones:\s*\d+$")
+
+    def line_format_checker(self, line: tuple[int, str]) -> tuple:
+        """Validate and parse the drone-count header line."""
+        if not self._PATTERN.match(line[1]):
+            raise ValueError(
+                f"line {line[0]} : the header line should be "
+                "nb_drones: <positive number>"
+            )
+        return self.data_updater(line)
+
+    def data_updater(self, line: tuple[int, str], metadata: Optional[dict] = None) -> tuple:
+        """Convert the header line into (line_number, 'nb_drones', count)."""
+        parts = line[1].replace(":", " ").split()
+        name = parts[0]
+        drones = int(parts[1])
+        if drones <= 0:
+            raise ValueError(f"line {line[0]}: nb_drones must be a positive integer.")
+        return (line[0], name, drones)
+
+
+class ConnectionParser(Parser):
+    """Parses `connection: <name1>-<name2> [metadata]` lines."""
+
+    _PATTERN = re.compile(
+        r"^connection:\s*[a-zA-Z0-9]+-[a-zA-Z0-9]+(?:\s+\[[^\]]*\])?$"
+    )
+
+    def __init__(self, metadataparser: MetadaParser) -> None:
+        """Store the shared metadata parser."""
+        self.metadataparser = metadataparser
+
+    def line_format_checker(self, line: tuple[int, str]) -> tuple:
+        """Validate and parse a connection line."""
+        metadata = self.metadataparser.conexion_metadata(line)
+        if not self._PATTERN.match(line[1]):
+            raise ValueError(
+                f"line {line[0]}: connexion should be like this "
+                "(connection: <name1>-<name2> [metadata]) metadata is optionnal"
+            )
+        return self.data_updater(line, metadata)
+
+    def data_updater(self, line: tuple[int, str], metadata: Optional[dict] = None) -> tuple:
+        """Convert a validated connection line into a structured tuple."""
+        data = line[1].replace(":", " ").split()
+        endpoints = tuple(data[1].replace("-", " ").split())
+        if metadata:
+            return (line[0], data[0], endpoints, metadata)
+        return (line[0], data[0], endpoints)
+
+
+class ZoneParser(Parser):
+    """Parses `(start_hub|hub|end_hub): <name> <x> <y> [metadata]` lines."""
+
+    _PATTERN = re.compile(
+        r"^(start_hub|hub|end_hub):\s+[a-zA-Z0-9]+\s+-?\d+\s+-?\d+(?:\s+\[[^\]]*\])?\s*$"
+    )
+
+    def __init__(self, metadataparser: MetadaParser) -> None:
+        """Store the shared metadata parser."""
+        self.metadataparser = metadataparser
+
+    def line_format_checker(self, line: tuple[int, str]) -> tuple:
+        """Validate and parse a zone line."""
+        if not self._PATTERN.match(line[1]):
+            raise ValueError(
+                f"line {line[0]}: zone line should be "
+                "'(start_hub|hub|end_hub): <name> <x> <y> [metadata]'"
+            )
+        metadata = self.metadataparser.zone_metadata(line)
+        return self.data_updater(line, metadata)
+
+    def data_updater(self, line: tuple[int, str], metadata: Optional[dict] = None) -> tuple:
+        """Convert a validated zone line into a structured tuple."""
+        body = line[1].split("[")[0]
+        parts = body.replace(":", " ").split()
+        zone_kind, name, x, y = parts[0], parts[1], int(parts[2]), int(parts[3])
+        if metadata:
+            return (line[0], zone_kind, name, x, y, metadata)
+        return (line[0], zone_kind, name, x, y)
+==> source_reader.py <==
+import os
+
+
+class SourceReader:
+    """A class to handle secure and clean file reading operations."""
+
+    def __init__(self, file_path: str):
+        """Initializes the reader with a targeted file path."""
+        self.file_path = file_path
+
+    def strip_comments(self, line: str):
+        """Strip the comments from the line."""
+        return line.split("#")[0].rstrip()
+
+    def read_lines(self) -> list:
+        """Reads the file and returns a structured list of individual lines."""
+        if not os.path.exists(self.file_path):
+            return []
+        try:
+            with open(self.file_path, "r") as file:
+                result = []
+                for line_number, line in enumerate(file, start=1):
+                    cleaned = self.strip_comments(line.strip())
+                    if cleaned:
+                        result.append((line_number, cleaned))
+                return result
+        except (OSError):
+            return []
+
+if __name__=="__main__":
+    input = SourceReader("../maps/easy/01_linear_path.txt")
+    # print(input.read_lines())

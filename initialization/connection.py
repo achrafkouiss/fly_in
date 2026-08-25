@@ -10,5 +10,5 @@ class Connection:
     def get_capacity(self):
         return self.max_link_capacity
 
-    def get_other_zone(self, zones):
-        pass
+    # def get_other_zone(self, zones):
+    #     pass

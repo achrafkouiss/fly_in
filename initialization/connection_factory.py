@@ -8,7 +8,7 @@ class ConnectionFactory:
         zone1, zone2 = line[2]
         if zone1 not in zones or zone2 not in zones:
             raise ValueError(f"line {line[0]}: make sure zones exist before making the connection")
-        options = line[3] if len(line) > 3 else {}
+        options = line[3] if len(line) > 3 else {}  
         max_link_capacity = options.get("max_link_capacity")
         connection = Connection(
             zone1,

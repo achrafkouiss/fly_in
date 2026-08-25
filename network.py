@@ -1,5 +1,6 @@
 from parsing import MainParser, SourceReader
 from initialization import ZoneFactory, ConnectionFactory 
+from graph import Graph
 
 #i should check if he did not find the file/folder what happen
 class Network:
@@ -13,14 +14,14 @@ class Network:
         }
 
     def start(self, file_name):
-        zones:dict = {}
         reader = SourceReader(file_name)
         parsing = MainParser()
         lines = parsing.check_grammar(reader.read_lines())
         for line in lines[1:]:
             self.factory[line[1]].builder(line, self.zones.zones)
-        print(self.zones.zones)
-        print(self.factory["connection"].connections)
+        graph = Graph(self.zones.zones, self.factory["connection"].connections)
+        # print(self.zones.zones)
+        # print(self.factory["connection"].connections)
             
 
 if __name__ == "__main__":
