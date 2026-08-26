@@ -56,15 +56,20 @@ class MainParser:
             raise ValueError(f"there is no {' and '.join(zero_keys)}")
 
     def check_duplicate_connection_name(self) -> None:
-        """Ensure the connection name and the connection itself is not duplicated."""
+        """Ensure no connection is a self-loop or duplicates another connection."""
         connections = [line for line in self.new_data if line[1] == "connection"]
         for index, line in enumerate(connections):
             name1, name2 = line[2]
             if name1 == name2:
-                raise ValueError(f"line {line[0]}: {line[2]} names of the zones should not be the same")
-            for l in connections[index + 1:]:
-                if sorted(tuple((name1, name2))) == sorted(l[2]):
-                    raise ValueError(f"line {line[0]} and {l[0]}: {line[2]} and {l[2]} duplited connection")
+                raise ValueError(
+                    f"line {line[0]}: {line[2]} names of the zones should not be the same"
+                )
+            for other in connections[index + 1:]:
+                if sorted((name1, name2)) == sorted(other[2]):
+                    raise ValueError(
+                        f"line {line[0]} and {other[0]}: "
+                        f"{line[2]} and {other[2]} duplicated connection"
+                    )
 
     def checks(self) -> None:
         """Run all cross-line validation checks."""

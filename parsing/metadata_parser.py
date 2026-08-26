@@ -40,30 +40,41 @@ class MetadaParser:
                 raise ValueError(f"line {line_number}: metadata key '{key}' has no value")
             if key in metadata:
                 raise ValueError(f"line {line_number}: duplicate metadata key '{key}'")
-            metadata[key] = int(value) if key in ("max_link_capacity", "max_drones") else value
+            metadata[key] = value
         return metadata
 
-    def conexion_metadata(self, line: tuple[int, str]) -> dict:
+    def _to_positive_int(self, line_number: int, key: str, value: str) -> int:
+        """Validate and convert a metadata value expected to be a positive int.
+ 
+        Uses str.isdigit() before calling int() so an invalid value (e.g.
+        "abc" or "-3") raises a clean, line-numbered error instead of a
+        raw ValueError from int().
+        """
+        if not value.isdigit() or int(value) <= 0:
+            raise ValueError(f"line {line_number}: {key} must be a positive integer")
+        return int(value)
+ 
+    def conexion_metadata(self, line: tuple[int, str]) -> dict[str, object]:
         """Validate and return metadata for a connection line."""
         valid_connection_keys = {"max_link_capacity"}
-        metadata = self.check_valid_keys(line, valid_connection_keys)
+        raw_metadata = self.check_valid_keys(line, valid_connection_keys)
+        metadata: dict[str, object] = dict(raw_metadata)
         if "max_link_capacity" in metadata:
-            cap = metadata["max_link_capacity"]
-            if cap <= 0:
-                raise ValueError(
-                    f"line {line[0]}: max_link_capacity must be a positive integer"
-                )
+            metadata["max_link_capacity"] = self._to_positive_int(
+                line[0], "max_link_capacity", raw_metadata["max_link_capacity"]
+            )
         return metadata
-
-    def zone_metadata(self, line: tuple[int, str]) -> dict:
+ 
+    def zone_metadata(self, line: tuple[int, str]) -> dict[str, object]:
         """Validate and return metadata for a zone line."""
         valid_zone_keys = {"zone", "color", "max_drones"}
         valid_zone_types = {"normal", "blocked", "restricted", "priority"}
-        metadata = self.check_valid_keys(line, valid_zone_keys)
-        if "zone" in metadata and metadata["zone"] not in valid_zone_types:
-            raise ValueError(f"line {line[0]}: invalid zone type '{metadata['zone']}'")
+        raw_metadata = self.check_valid_keys(line, valid_zone_keys)
+        if "zone" in raw_metadata and raw_metadata["zone"] not in valid_zone_types:
+            raise ValueError(f"line {line[0]}: invalid zone type '{raw_metadata['zone']}'")
+        metadata: dict[str, object] = dict(raw_metadata)
         if "max_drones" in metadata:
-            mx = metadata["max_drones"]
-            if mx <= 0:
-                raise ValueError(f"line {line[0]}: max_drones must be a positive integer")
+            metadata["max_drones"] = self._to_positive_int(
+                line[0], "max_drones", raw_metadata["max_drones"]
+            )
         return metadata
