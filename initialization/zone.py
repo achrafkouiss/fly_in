@@ -41,14 +41,18 @@ class Zone:
         """Return whether drones may enter this zone."""
         return self.behavior.is_traversable()
 
-    def get_capacity_limit(self, max_capacity: int) -> float:
+    def is_prior(self) -> bool:
+        """chek if this zone is prior."""
+        return self.behavior.is_prior()
+
+    def get_capacity_limit(self) -> float:
         """Return the effective capacity limit for this zone.
 
         Note:
             For start/end zones this always returns infinity regardless of
             any max_drones metadata, per the subject's occupancy rules.
         """
-        return self.behavior.get_capacity_limit(max_capacity)
+        return self.behavior.get_capacity_limit(self.get_max_drones())
 
     def get_name(self) -> str:
         """Return the zone's name."""

@@ -27,11 +27,13 @@ class MainParser:
     def check_grammar(self, lines: list[tuple[int, str]]) -> list[tuple]:
         """Validate and parse every line, populating self.new_data."""
         for line_number, content in lines:
+            # print(line_number, content)
             keyword = self.get_keyword(content)
             parser = self.dispatch.get(keyword)
             if parser is None:
                 raise ValueError(f"line {line_number} :{content} is not correct")
             self.new_data.append(parser.line_format_checker((line_number, content)))
+        # print(self.new_data)
         self.checks()
         return self.new_data
 

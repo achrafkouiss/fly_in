@@ -50,7 +50,7 @@ class Graph:
                 return connection
         return None
 
-    def is_connected(self, start: Optional[str] = None, end: Optional[str] = None) -> bool:
+    def is_connected(self, start: Optional[str] = None, end: Optional[str] = None) -> set:
         """Check reachability between zones via breadth-first search.
 
         Args:
@@ -72,7 +72,7 @@ class Graph:
         while queue:
             current = queue.pop(0)
             if end is not None and current == end:
-                return True
+                return visited
             for connection in self.adjacency[current]:
                 neighbour = connection.get_other_zone(current)
                 if neighbour not in visited:
@@ -81,4 +81,4 @@ class Graph:
 
         if end is not None:
             return end in visited
-        return visited == set(self.zones.keys())
+        return visited

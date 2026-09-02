@@ -14,6 +14,11 @@ class ZoneBehavior(ABC):
     def get_capacity_limit(self, max_capacity: int) -> float:
         """Return the effective capacity limit given the configured max."""
 
+    @abstractmethod
+    def is_prior(self) -> bool:
+        """Return the turn cost to move into a zone of this type."""
+
+
 class NormalBehavior(ZoneBehavior):
     """Standard zone: 1 turn cost, traversable, uses configured capacity."""
     def get_movement_cost(self) -> int:
@@ -24,6 +29,9 @@ class NormalBehavior(ZoneBehavior):
 
     def get_capacity_limit(self, max_capacity: int) -> float:
         return max_capacity
+
+    def is_prior(self) -> bool:
+        return False
 
 class RestrictedBehavior(ZoneBehavior):
     """Restricted zone: 2 turn cost, traversable, uses configured capacity."""
@@ -36,6 +44,9 @@ class RestrictedBehavior(ZoneBehavior):
     def get_capacity_limit(self, max_capacity: int) -> float:
         return max_capacity
 
+    def is_prior(self) -> bool:
+        return False
+
 class PriorityBehavior(ZoneBehavior):
     """Priority zone: 1 turn cost, traversable, preferred in pathfinding."""
     def get_movement_cost(self) -> int:
@@ -46,6 +57,9 @@ class PriorityBehavior(ZoneBehavior):
 
     def get_capacity_limit(self, max_capacity: int) -> float:
         return max_capacity
+
+    def is_prior(self) -> bool:
+        return True
 
 class BlockedBehavior(ZoneBehavior):
     """Blocked zone: not traversable, zero capacity."""
@@ -58,6 +72,9 @@ class BlockedBehavior(ZoneBehavior):
     def get_capacity_limit(self, max_capacity: int) -> float:
         return 0
 
+    def is_prior(self) -> bool:
+        return False
+
 class StartZoneBehavior(ZoneBehavior):
     """Start zone: free entry, unlimited capacity."""
     def get_movement_cost(self) -> int:
@@ -68,6 +85,9 @@ class StartZoneBehavior(ZoneBehavior):
 
     def get_capacity_limit(self, max_capacity: int) -> float:
         return float('inf')
+
+    def is_prior(self) -> bool:
+        return False
 
 
 class EndZoneBehavior(ZoneBehavior):
@@ -80,3 +100,6 @@ class EndZoneBehavior(ZoneBehavior):
 
     def get_capacity_limit(self, max_capacity: int) -> float:
         return float('inf')
+
+    def is_prior(self) -> bool:
+            return False

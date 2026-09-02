@@ -49,7 +49,7 @@ class ConnectionParser(Parser):
     """Parses `connection: <name1>-<name2> [metadata]` lines."""
 
     _PATTERN = re.compile(
-        r"^connection:\s*[a-zA-Z0-9]+-[a-zA-Z0-9]+(?:\s+\[[^\]]*\])?$"
+        r"^connection:\s*\S+-\S+(?:\s+\[[^\]]*\])?\s*$"
     )
 
     def __init__(self, metadataparser: MetadaParser) -> None:
@@ -79,7 +79,7 @@ class ZoneParser(Parser):
     """Parses `(start_hub|hub|end_hub): <name> <x> <y> [metadata]` lines."""
 
     _PATTERN = re.compile(
-        r"^(start_hub|hub|end_hub):\s+[a-zA-Z0-9]+\s+-?\d+\s+-?\d+(?:\s+\[[^\]]*\])?\s*$"
+        r"^(start_hub|hub|end_hub):\s+\S+\s+-?\d+\s+-?\d+(?:\s+\[[^\]]*\])?\s*$"
     )
 
     def __init__(self, metadataparser: MetadaParser) -> None:
@@ -89,6 +89,7 @@ class ZoneParser(Parser):
     def line_format_checker(self, line: tuple[int, str]) -> tuple:
         """Validate and parse a zone line."""
         if not self._PATTERN.match(line[1]):
+            # print(line[1])
             raise ValueError(
                 f"line {line[0]}: zone line should be "
                 "'(start_hub|hub|end_hub): <name> <x> <y> [metadata]'"
