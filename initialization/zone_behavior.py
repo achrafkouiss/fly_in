@@ -93,7 +93,7 @@ class StartZoneBehavior(ZoneBehavior):
 class EndZoneBehavior(ZoneBehavior):
     """End zone: normal entry cost, unlimited capacity."""
     def get_movement_cost(self) -> int:
-        return 1
+        return 0
 
     def is_traversable(self) -> bool:
         return True

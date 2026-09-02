@@ -85,7 +85,7 @@ class MainParser:
 
 
 if __name__ == "__main__":
-    reader = SourceReader("../maps/easy/01_linear_path.txt")
+    reader = SourceReader("./maps/medium/02_circular_loop.txt")
     parsing = MainParser()
     parsing.check_grammar(reader.read_lines())
     # print(parsing.new_data)

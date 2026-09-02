@@ -14,6 +14,7 @@ class Drone():
     def move_to_next_zone(self):
         # print(f"Drone {self.drone_id}: " f"{self.current_index} -> {self.current_index + 1}" )
         self.current_index += 1
+        self.status = 1
         return self.get_current_zone()
 
     def has_reached_end(self):
@@ -27,3 +28,10 @@ class Drone():
 
     def get_drone_id(self):
         return self.drone_id
+
+    def movement_progress(self, movement_cost):
+        if self.status < movement_cost:
+            self.status += 1
+            return False
+        else:
+            return True

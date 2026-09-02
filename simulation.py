@@ -12,18 +12,18 @@ class Simulation:
         # print(self.occupancy )
 
     def run(self):
-        index = 0
-        self.turn_log.append(f"turn 0")
         while any(not obj.has_reached_end() for obj in self.drones):
             # print([not obj.has_reached_end() for obj in self.drones])
             # print("self drones = ", self.drones)
-            print("self.occupancy = ", self.occupancy)
+            # print("self.occupancy = ", self.occupancy)
+            # print("current_occupancy = ", {key: len(occ) for key, occ in self.occupancy.items()})
             self.connection_occupancy = {connection: [] for connection in self.graph.connections}
             # print("self.connection_occupancy = ", self.connection_occupancy)
-            print("current_occupancy = ", [len(occ) for occ in self.occupancy])
             self.turn_counter += 1
-            self.process_turn()
-            self.turn_log.append(f"tunr {self.turn_counter}")
+            turn_movements = self.process_turn()
+
+            if turn_movements:
+                self.turn_log.append(" ".join(turn_movements))
             # if index == 3:
             #     import sys
             #     sys.exit()
@@ -32,6 +32,7 @@ class Simulation:
         print(*self.turn_log, sep="\n")
 
     def process_turn(self):
+        turn_movements = []
         ongoing_drones = [
             obj
             for obj in self.drones
@@ -48,18 +49,27 @@ class Simulation:
             # print("current zone = ", current_zone)
             # print("next_zone zone = ", next_zone)
             if self.can_move(connection, next_zone):
-                self.update_connection_occupancy(connection, drone, "enter")
-                drone.move_to_next_zone()
+                # print(current_zone)
+                # print(self.graph.zones)
+                if drone.movement_progress(self.graph.zones[drone.get_current_zone()].get_movement_cost() ):
+                    self.update_connection_occupancy(connection, drone, "enter")
+                    drone.move_to_next_zone()
+                    # print(next_zone)
+                    # print("self.graph.zones = ", self.graph.zones)
+                    # if self.graph.zones[next_zone].get_movement_cost() != 2:
+                    turn_movements.append(f"D{drone.get_drone_id()}-{next_zone}")
+                    # else:
+                    #     zone1, zone2 = connection.get_zones()
+                    #     self.turn_log.append(f"D{drone.get_drone_id()}-{zone1} {zone2}")
+                    self.update_occupancy(next_zone, drone, "enter")
+                    self.update_occupancy(current_zone, drone, "leave")
 
-                self.turn_log.append(f"D{drone.get_drone_id()} {next_zone}")
-
-                self.update_occupancy(next_zone, drone, "enter")
-                self.update_occupancy(current_zone, drone, "leave")
-            else:
-                self.turn_log.append(f"Drone {drone.get_drone_id()} waited")
+            # else:
+            #     self.turn_log.append(f"Drone {drone.get_drone_id()} waited")
         # print(self.connection_occupancy)
             # print("----------------------------------")
             # print("----------------------------------")
+        return turn_movements
 
 
 

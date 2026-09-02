@@ -10,8 +10,10 @@ class Pathfinder():
         
 
     def set_dynamic_costs(self):
-        dynamic_costs = {zone_name: 0 for zone_name in self.graph.zones.keys()}
-        return dynamic_costs
+        return {
+            zone_name: 0
+            for zone_name in self.graph.zones.keys()
+        }
 
     def find_single_path(self, zones, start_zone, end_zone):
         distances = {node: float('inf') for node in zones}
@@ -42,12 +44,14 @@ class Pathfinder():
                 dynamic_adjustment = self.dynamic_costs.get(neighbor, 0)
                 weight = base_weight + dynamic_adjustment
 
-                distance = current_distance + weight
-
                 new_priority_count = priority_count[current_node]
-
+    
                 if zones[neighbor].is_prior():
                     new_priority_count += 1
+                    weight = weight * 0.1
+                distance = current_distance + weight
+
+
     
                 if (
                     distance < distances[neighbor]
@@ -76,12 +80,8 @@ class Pathfinder():
 
     def update_dynamic_costs(self, path):
         for zone_name in self.graph.zones.keys():
-            # print("zone name = ", zone_name, "\npath = ", path)
-
-            # print("\n\n")
             if zone_name in path and zone_name not in (self.graph.start_zone.get_name(), self.graph.end_zone.get_name()):
                 self.dynamic_costs[zone_name] += self.penalty_amount
-        # print(self.dynamic_costs)
 
     def find_all_paths(self):
         paths = []
