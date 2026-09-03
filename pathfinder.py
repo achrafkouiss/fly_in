@@ -48,7 +48,7 @@ class Pathfinder():
     
                 if zones[neighbor].is_prior():
                     new_priority_count += 1
-                    weight = weight * 0.1
+                    weight = weight * 0.01
                 distance = current_distance + weight
 
 

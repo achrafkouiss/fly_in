@@ -8,6 +8,7 @@ class Simulation:
         self.occupancy = {zone: drones.copy() if zone == graph.start_zone.get_name() else [] for zone in graph.zones}
         self.turn_log = []
         self.connection_occupancy = {}
+        self.history = []
         # print(self.occupancy)
         # print(self.occupancy )
 
@@ -16,7 +17,8 @@ class Simulation:
             # print([not obj.has_reached_end() for obj in self.drones])
             # print("self drones = ", self.drones)
             # print("self.occupancy = ", self.occupancy)
-            # print("current_occupancy = ", {key: len(occ) for key, occ in self.occupancy.items()})
+            self.history = {key: [oc.get_drone_id() for oc in occ]  for key, occ in self.occupancy.items()}
+            print(self.history)
             self.connection_occupancy = {connection: [] for connection in self.graph.connections}
             # print("self.connection_occupancy = ", self.connection_occupancy)
             self.turn_counter += 1
@@ -29,6 +31,7 @@ class Simulation:
             #     sys.exit()
             # index += 1
             # print("-----------------------------------------------------------------------")
+
         print(*self.turn_log, sep="\n")
 
     def process_turn(self):
@@ -51,7 +54,7 @@ class Simulation:
             if self.can_move(connection, next_zone):
                 # print(current_zone)
                 # print(self.graph.zones)
-                if drone.movement_progress(self.graph.zones[drone.get_current_zone()].get_movement_cost() ):
+                if drone.movement_progress(self.graph.zones[drone.get_current_zone()].get_movement_cost()):
                     self.update_connection_occupancy(connection, drone, "enter")
                     drone.move_to_next_zone()
                     # print(next_zone)
@@ -108,6 +111,3 @@ class Simulation:
         if action == "enter":
             # print(f"Drone {drone.get_drone_id()} enterd")
             self.connection_occupancy[connection].append(drone)
-        elif action == "leave":
-            # print(f"Drone {drone.get_drone_id()} leaved")
-            self.connection_occupancy[connection].remove(drone)
