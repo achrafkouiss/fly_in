@@ -17,8 +17,13 @@ class Simulation:
             # print([not obj.has_reached_end() for obj in self.drones])
             # print("self drones = ", self.drones)
             # print("self.occupancy = ", self.occupancy)
-            self.history = {key: [oc.get_drone_id() for oc in occ]  for key, occ in self.occupancy.items()}
-            print(self.history)
+            # self.history = {key: [oc.get_drone_id() for oc in occ]  for key, occ in self.occupancy.items()}
+            # print(self.history)
+            # print("---------------------------------")
+            # # print(self.occupancy)
+            # print({key: [oc.get_drone_id() for oc in occ]  for key, occ in self.occupancy.items()})
+            # print("---------------------------------")
+            self.history.append({key: [oc.get_drone_id() for oc in occ]  for key, occ in self.occupancy.items()})
             self.connection_occupancy = {connection: [] for connection in self.graph.connections}
             # print("self.connection_occupancy = ", self.connection_occupancy)
             self.turn_counter += 1
@@ -32,7 +37,8 @@ class Simulation:
             # index += 1
             # print("-----------------------------------------------------------------------")
 
-        print(*self.turn_log, sep="\n")
+        # print(*self.turn_log, sep="\n")
+        self.history.append({key: [oc.get_drone_id() for oc in occ]  for key, occ in self.occupancy.items()})
 
     def process_turn(self):
         turn_movements = []
@@ -111,3 +117,6 @@ class Simulation:
         if action == "enter":
             # print(f"Drone {drone.get_drone_id()} enterd")
             self.connection_occupancy[connection].append(drone)
+
+    def get_history(self):
+        return self.history

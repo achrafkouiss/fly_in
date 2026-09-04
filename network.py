@@ -5,8 +5,9 @@ from initialization import ZoneFactory, ConnectionFactory, Drone
 from graph import Graph
 from pathfinder import Pathfinder
 from simulation import Simulation
+from visualization2 import DroneVisualizer
 
-
+import arcade
 
 class Network:
     """Wires together parsing, zone/connection construction, and the graph."""
@@ -52,6 +53,9 @@ class Network:
             drones.append(drone)
         simulation = Simulation(drones, graph)
         simulation.run()
+        print(simulation.get_history())
+        window = DroneVisualizer(graph, simulation.get_history())
+        arcade.run()
 
         # for penalty in [0, 0.01, 0.02, 0.03, 0.04, 0.05, 0,0.1, 0.2, 0.3, 0.4, 0,5, 1, 1.5, 2, 2.5, 3, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10]:
         #     pathfinder = Pathfinder(graph, nb_drones, penalty)
@@ -88,13 +92,13 @@ if __name__ == "__main__":
     # graph = network.start("maps/easy/03_basic_capacity.txt")
 
     # graph = network.start("maps/medium/01_dead_end_trap.txt")
-    graph = network.start("maps/medium/02_circular_loop.txt")
+    # graph = network.start("maps/medium/02_circular_loop.txt")
     # graph = network.start("maps/medium/03_priority_puzzle.txt")
 
     # graph = network.start("maps/hard/01_maze_nightmare.txt")
     # graph = network.start("maps/hard/02_capacity_hell.txt")
     # graph = network.start("maps/hard/03_ultimate_challenge.txt")
 
-    # graph = network.start("maps/challenger/01_the_impossible_dream.txt")
+    graph = network.start("maps/challenger/01_the_impossible_dream.txt")
     # print(f"drones: {network.nb_drones}")
     # print(f"start: {graph.start_zone.get_name()}, end: {graph.end_zone.get_name()}")
